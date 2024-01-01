@@ -1,0 +1,219 @@
+service
+
+
+
+Problem Statement:
+
+1. Fetching books data using HttpClient class. 
+
+2. Sending a request for adding a new book using HttpClient class.
+
+3. Updating an existing book using HttpClient class. 
+
+4. Deleting a book using HttpClient class. 
+
+
+
+ 
+
+In the example used for custom services concept, add HttpModule to the app.module.ts to make use of HttpClient class.
+import { NgModule } from '@angular/core';
+                import { BrowserModule } from '@angular/platform-browser';
+                import {HttpClientModule} from '@angular/common/http';
+                import { AppComponent } from './app.component';
+                import { BookComponent } from './book/book.component';
+                @NgModule({
+                  imports: [BrowserModule, HttpClientModule],
+                  declarations: [AppComponent, BookComponent],
+                  providers: [],
+                  bootstrap: [AppComponent]
+                })
+                export class AppModule { }
+                
+ 
+
+Add the following code in book.service.ts file
+import { Injectable } from '@angular/core';
+                import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+                import { Observable, throwError } from 'rxjs';
+                import { catchError, tap } from 'rxjs/operators';
+                import { Book } from './book';
+                @Injectable({
+                    providedIn:'root'
+                })
+                export class BookService {
+                  booksUrl = 'http://localhost:3020/bookList';
+                  constructor(private http: HttpClient) { }
+                  getBooks(): Observable<Book[]> {
+                    return this.http.get<Book[]>('http://localhost:3020/bookList').pipe(
+                      tap((data: any) => console.log('Data Fetched:' + JSON.stringify(data))),
+                      catchError(this.handleError));
+                  }
+                  addBook(book: Book): Observable<any> {
+                    const options = new HttpHeaders({ 'Content-Type': 'application/json' });
+                    return this.http.post('http://localhost:3020/addBook', book, { headers: options }).pipe(
+                      catchError(this.handleError));
+                  }
+                  updateBook(book: Book): Observable<any> {
+                    const options = new HttpHeaders({ 'Content-Type': 'application/json' });
+                    return this.http.put<any>('http://localhost:3020/update', book, { headers: options }).pipe(
+                      tap((_: any) => console.log(`updated hero id=${book.id}`)),
+                      catchError(this.handleError)
+                    );
+                  }
+                  deleteBook(bookId: number): Observable<any> {
+                    const url = `${this.booksUrl}/${bookId}`;
+                    return this.http.delete(url).pipe(
+                      catchError(this.handleError));
+                  }
+                  private handleError(err: HttpErrorResponse): Observable<any> {
+                    let errMsg = '';
+                    if (err.error instanceof Error) {
+                      // A client-side or network error occurred. Handle it accordingly.
+                      console.log('An error occurred:', err.error.message);
+                      errMsg = err.error.message;
+                    } else {
+                      // The backend returned an unsuccessful response code.
+                      // The response body may contain clues as to what went wrong,
+                      console.log(`Backend returned code ${err.status}`);
+                      errMsg = err.error.status;
+                    }
+                    return throwError(()=>errMsg);
+                  }
+                }
+                
+ 
+
+Write the code given below in book.component.ts
+import { Component, OnInit } from '@angular/core';
+                import { BookService } from './book.service';
+                import { Book } from './book';
+                @Component({
+                  selector: 'app-book',
+                  templateUrl: './book.component.html',
+                  styleUrls: ['./book.component.css']
+                })
+                export class BookComponent implements OnInit {
+                  title = 'Demo on HttpClientModule';
+                  books!: Book[];
+                  errorMessage!: string;
+                  ADD_BOOK!: boolean;
+                  UPDATE_BOOK!: boolean;
+                  DELETE_BOOK!: boolean;
+                  constructor(private bookService: BookService) { }
+                  getBooks() {
+                    this.bookService.getBooks().subscribe({
+                      next:  books => this.books = books,
+                      error:error => this.errorMessage = <any>error
+                    })
+                  }
+                  addBook(bookId: string, name: string): void {
+                    let id=parseInt(bookId)
+                    this.bookService.addBook({id, name })
+                      .subscribe({next:(book: any) => this.books.push(book)});
+                  }
+                  updateBook(bookId: string, name: string): void {
+                    let id=parseInt(bookId)
+                    this.bookService.updateBook({ id, name })
+                      .subscribe({next:(book: any) => this.books = book});
+                  }
+                  deleteBook(bookId: string): void {
+                    let id=parseInt(bookId)
+                    this.bookService.deleteBook(id)
+                      .subscribe({next:(book: any) => this.books = book});
+                  } 
+                  ngOnInit() {
+                    this.getBooks();
+                  }
+                }
+                
+ 
+
+Write the code given below in book.component.html
+<h2>{{ title }}</h2>
+                <h2>My Books</h2>
+                <ul class="books">
+                  <li *ngFor="let book of books">
+                    <span class="badge">{{ book.id }}</span> {{ book.name }}
+                  </li>
+                </ul>
+                <button class="btn btn-primary" (click)="ADD_BOOK = true">Add Book</button>&nbsp;
+                <button class="btn btn-primary" (click)="UPDATE_BOOK = true">Update Book</button>&nbsp;
+                <button class="btn btn-primary" (click)="DELETE_BOOK = true">Delete Book</button>
+                <br />
+                <div *ngIf="ADD_BOOK">
+                  <table>
+                    <tr>
+                      <td>Enter Id of the book:</td>
+                      <td>
+                        <input type="number" #id />
+                      </td>
+                    </tr>
+                    <br />
+                    <tr>
+                      <td>Enter Name of the Book:</td>
+                      <td>
+                        <input type="text" #name />
+                        <br />
+                      </td>
+                    </tr>
+                    <br />
+                    <tr>
+                      <td>
+                        <button class="btn btn-primary" (click)="addBook(id.value, name.value); ADD_BOOK = false">
+                          Add Record
+                        </button>
+                      </td>
+                    </tr>
+                  </table>
+                  <br />
+                </div>
+                <div *ngIf="UPDATE_BOOK">
+                  <table>
+                    <tr>
+                      <td>Enter Id of the book:</td>
+                      <td>
+                        <input type="number" #id />
+                      </td>
+                    </tr>
+                    <br />
+                    <tr>
+                      <td>Enter Name of the Book:</td>
+                      <td>
+                        <input type="text" #name />
+                        <br />
+                      </td>
+                    </tr>
+                    <br />
+                    <tr>
+                      <td>
+                        <button class="btn btn-primary" (click)="updateBook(id.value, name.value); UPDATE_BOOK = false">
+                          Update Record
+                        </button>
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+                <br />
+                <div *ngIf="DELETE_BOOK">
+                  <table>
+                    <tr>
+                      <td>Enter Id of the book:</td>
+                      <td>
+                        <input type="number" #id />
+                      </td>
+                    </tr>
+                    <br />
+                    <tr>
+                      <td>
+                        <button class="btn btn-primary" (click)="deleteBook(id.value); DELETE_BOOK = false">
+                          Delete Record
+                        </button>
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+                <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
+ 
+
+Save the files and check the output in the browser
