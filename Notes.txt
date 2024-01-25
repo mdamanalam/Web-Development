@@ -1,0 +1,231 @@
+Spring certification Steps:-
+
+Main topics:- 
+    services,dto validations,controller,exceptions
+
+
+Step 1:- exception handling
+
+	1.Add @ControllerAdvice on top of class
+	eg:
+		@ControllerAdvice
+		public class Exceptionclass{
+
+		}
+
+	2.Add @ExceptionHandler(Exception.class)  for generalExceptionHandler
+	eg:-
+	@ExceptionHandler(Exception.class) 
+	public ResponseEntity<ErrorMessage> generalExceptionHandler(Exception ex) 
+	{
+		 ErrorMessage error = new ErrorMessage();
+	     error.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+	     error.setMessage(environment.getProperty(InfyTelConstants.GENERAL_EXCEPTION_MESSAGE.toString()));
+	     return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+	
+	3.add @ExceptionHandler(CustomerNotFoundException.class) for given CustomException
+	eg:-
+	@ExceptionHandler(CustomerNotFoundException.class)
+	public ResponseEntity<ErrorMessage> customerNotFoundExceptionHandler(CustomerNotFoundException ex) 
+	{
+		 ErrorMessage error = new ErrorMessage();
+	     error.setErrorCode(HttpStatus.BAD_REQUEST.value());
+	     error.setMessage(ex.getMessage());
+	     return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+		 
+	}
+
+	4.Add @ExceptionHandler({MethodArgumentNotvalidException.class,ConstraintViolationException.class}) for exceptionhandler method
+
+
+step 2:- creation services 
+
+Create/add service:-
+
+    @Override
+	public void addBook(BookDTO bookDTO) throws InfyBookException {
+        if(bookDTO != null){
+		BookDTO b = new BookDTO();
+		System.out.print(b.convert(bookDTO)); //conversion to book class from bookDTO 
+		bookRepository.save(b.convert(bookDTO)); //save
+        }
+       
+		
+	}
+
+    //update
+    @Override
+	public void updateBookPrice(Integer bookId, Integer price) throws InfyBookException {
+		Optional<Book> e=bookRepository.findById(bookId);
+		if(e.isPresent()) {
+			Book ue=e.get();
+			ue.setPrice(price);
+			bookRepository.save(ue);
+		}else {
+			throw new InfyBookException(environment.getProperty(InfyTelConstants.CUSTOMER_NOT_FOUND.toString()));
+		}
+	}
+
+    //delete
+    @Override
+	public void deleteBook(Integer bookId) throws InfyBookException {
+		if(bookRepository.findById(bookId).isPresent())
+			bookRepository.deleteById(bookId);
+		else
+			throw new InfyBookException(environment.getProperty(InfyTelConstants.CUSTOMER_NOT_FOUND.toString()));
+	}
+
+
+    //get  by id
+
+    @Override
+	public BookDTO getBookDetails(Integer bookId) throws InfyBookException  {
+		Optional<Book> b=bookRepository.findById(bookId);
+		Book bt = new Book();
+		if(b.isPresent())
+			return bt.covert(b);
+		else
+			throw new InfyBookException(environment.getProperty(InfyTelConstants.CUSTOMER_NOT_FOUND.toString()));
+	}
+
+    //get all
+
+    @Override
+	public List<MovieDirector> getAllMovieDetails() throws MovieException {
+		List<MovieDirector> res=(List<MovieDirector>) movieDirectorRepository.findAll();
+		if(res.isEmpty())
+			throw new MovieException("Service.INVALID_MOVIE_TITLE");
+		else {
+			//List<MovieDirector> result=res.stream().map(obj->modelMapper.map(obj, MovieDirectorDTO.class)).toList();
+			return res;
+		}
+		
+	}
+
+step 3:- controller
+    //Creates a new customer
+	@PostMapping
+	public ResponseEntity<CustomerDTO> createCustomer(@Valid @RequestBody CustomerDTO customerDTO )
+	{
+		return ResponseEntity.status(HttpStatus.CREATED).body(customerService.createCustomer(customerDTO));
+	}
+	
+	//Deletes an existing customer
+	@DeleteMapping
+	public String deleteCustomer()
+	{
+		return customerService.deleteCustomer(6231);//hard-coded customerId here. Make the service end-point receive the same from the client.
+	}
+	
+	//Updates an existing customer
+	@PutMapping(value = "/{customerId}", consumes = "application/json") 
+	public ResponseEntity<CustomerDTO> updateCustomer(@PathVariable("customerId") int customerId,
+													  @Valid @RequestBody CustomerDTO customerDTO) throws CustomerNotFoundException
+	{
+		return ResponseEntity.status(HttpStatus.OK).body(customerService.updateCustomer(customerId,customerDTO));
+	}
+
+    //Fetches a list of customers
+	@GetMapping(produces= {"application/xml","application/json"})
+	public ResponseEntity<EntityListCustomer<CustomerDTO>> fetchCustomers()
+	{
+		return ResponseEntity.status(HttpStatus.OK).body(customerService.fetchCustomers());
+	}
+
+
+step 4:- dto validations:
+add approriate messages
+
+
+- add the following annotations to your DTO class or property level as per requirement
+@NotNull: Ensures a field is not null.
+@NotBlank: Enforces non-nullity and requires at least one non-whitespace character.
+@NotEmpty: Guarantees that collections or arrays are not empty.
+@Min(value): Checks if a numeric field is greater than or equal to the specified minimum value.
+@Max(value): Checks if a numeric field is less than or equal to the specified maximum value.
+@Size(min, max): Validates if a string or collection size is within a specific range.
+@Pattern(regex): Verifies if a field matches the provided regular expression.
+@Email: Ensures a field contains a valid email address format.
+@Digits(integer, fraction): Validates that a numeric field has a specified number of integer and fraction digits.
+@Past and @Future : Checks that a date or time field is in the past and future respectively.
+@AssertTrue and @AssertFalse: Ensures that a boolean field is true. and false respectively.
+@CreditCardNumber: Validates that a field contains a valid credit card number.
+@Valid: Triggers validation of nested objects or properties.
+@Validated: Specifies validation groups to be applied at the class or method level.
+@FutureOrPresent: Ensures that a time value is in the future or the present.
+@PastOrPresent: Ensures that a time value is in the past or the present.
+
+
+example:-
+
+import javax.validation.constraints.*;
+
+public class User {
+    
+    @NotNull(message = "Name cannot be null")
+    private String name;
+    
+    @NotBlank(message = "Username cannot be blank")
+    private String username;
+    
+    @NotEmpty(message = "Emails cannot be empty")
+    private List<String> emails;
+    
+    @Min(value = 18, message = "Age must be at least 18")
+    private int age;
+    
+    @Max(value = 100, message = "Age cannot exceed 100")
+    private int age;
+    
+    @Size(min = 5, max = 10, message = "Password must be between 5 and 10 characters")
+    private String password;
+    
+    @Pattern(regexp = "\\d{3}-\\d{3}-\\d{4}", message = "Phone number must be in the format XXX-XXX-XXXX")
+    private String phoneNumber;
+    
+    @Email(message = "Invalid email format")
+    private String email;
+    
+    @Digits(integer = 5, fraction = 2, message = "Invalid amount format")
+    private BigDecimal amount;
+    
+    @Past(message = "Date must be in the past")
+    private LocalDate birthDate;
+    
+	@PastOrPresent(message = "Time must be in the past or the present")
+    private LocalTime pastOrPresentTime;
+
+    @Future(message = "Date must be in the future")
+    private LocalDate expirationDate;
+
+	@FutureOrPresent(message = "Time must be in the future or the present")
+    private LocalTime futureOrPresentTime;
+
+    @AssertTrue(message = "Agreement must be true")
+    private boolean agreement;
+    
+    @AssertFalse(message = "Value must be false")
+    private boolean value;
+    
+    @CreditCardNumber(message = "Invalid credit card number")
+    private String creditCardNumber;
+    
+
+
+    @Valid
+    private Address address;
+    
+    // Getters and setters
+    
+    // Nested class
+    public static class Address {
+        @NotBlank(message = "Street cannot be blank")
+        private String street;
+        
+        @NotBlank(message = "City cannot be blank")
+        private String city;
+        
+        // Getters and setters
+    }
+}
